@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const allowed = process.env.API_HOST;
+const allowed = "nutrition-assistant-backend-production-cd64.up.railway.app";
 
 // https://vite.dev/config/
 export default defineConfig({
