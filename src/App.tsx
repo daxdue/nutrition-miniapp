@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import "./App.css";
 import axios from "axios";
+import PairingPage from "./PairingPage";
 import {
   ResponsiveContainer,
   BarChart,
@@ -128,12 +129,23 @@ function groupMealsByDate(stats: StatsResponse | null) {
 }
 
 
+type Page = "stats" | "pairing";
+
 function App() {
+  const [currentPage, setCurrentPage] = useState<Page>("stats");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [rangeDays, setRangeDays] = useState<number>(1);
   const groupedMeals = useMemo(() => groupMealsByDate(stats), [stats]);
+
+  // Check URL for pairing page
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("page") === "pairing" || urlParams.get("token")) {
+      setCurrentPage("pairing");
+    }
+  }, []);
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -201,6 +213,12 @@ function App() {
         dailyTotals.reduce((sum, d) => sum + d.meals, 0) / dailyTotals.length
       ).toFixed(1)
       : "0.0";
+
+  // ---------- ROUTING ----------
+  
+  if (currentPage === "pairing") {
+    return <PairingPage onBack={() => setCurrentPage("stats")} />;
+  }
 
   // ---------- RENDER STATES ----------
 
@@ -271,6 +289,20 @@ function App() {
             Last {rangeDays || 7} days, based on AI-estimated calories.
           </div>
         </div>
+        <button
+          onClick={() => setCurrentPage("pairing")}
+          style={{
+            background: "rgba(15, 23, 42, 0.9)",
+            border: "1px solid rgba(148, 163, 184, 0.3)",
+            borderRadius: "12px",
+            padding: "8px 16px",
+            color: "#e5e7eb",
+            fontSize: "14px",
+            cursor: "pointer",
+          }}
+        >
+          ⌚ Pair Watch
+        </button>
         <div
           style={{
             display: "inline-flex",
