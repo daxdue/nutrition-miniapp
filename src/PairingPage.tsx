@@ -32,14 +32,14 @@ function PairingPage({ onBack }: PairingPageProps) {
       
       if (user?.id) {
         // Generate pairing token for the user
-        generatePairingToken(user.id);
+        //generatePairingToken(user.id);
       } else {
         setError("No pairing token found. Please use the /pair command in the bot.");
       }
     }
   }, []);
 
-  const generatePairingToken = async (telegramUserId: number) => {
+  /*const generatePairingToken = async (telegramUserId: number) => {
     try {
       setLoading(true);
       // This endpoint should be called from backend with user authentication
@@ -50,7 +50,7 @@ function PairingPage({ onBack }: PairingPageProps) {
     } finally {
       setLoading(false);
     }
-  };
+  };*/
 
   const startScanning = async () => {
     if (!pairingToken) {
@@ -77,6 +77,7 @@ function PairingPage({ onBack }: PairingPageProps) {
         },
         (errorMessage) => {
           // Ignore scanning errors (they're frequent during scanning)
+          console.log(errorMessage);
         }
       );
     } catch (err: any) {
