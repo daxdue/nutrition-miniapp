@@ -22,6 +22,15 @@ function PairingPage({ onBack }: PairingPageProps) {
   const normalizePairingToken = (raw: unknown): string | null => {
     if (raw == null) return null;
 
+    const acceptIfLooksLikeToken = (value: string): string | null => {
+      const trimmed = value.trim().replace(/^"+|"+$/g, "");
+      if (!trimmed) return null;
+      if (trimmed === "[object Object]") return null;
+      // Allow typical tokens: alphanum, dash, underscore (covers hex IDs like the QR sample)
+      if (/^[A-Za-z0-9_-]{6,128}$/.test(trimmed)) return trimmed;
+      return null;
+    };
+
     const extractFromQueryLike = (value: string): string | null => {
       if (!value.includes("token") && !value.includes("start_param")) return null;
 
@@ -49,14 +58,17 @@ function PairingPage({ onBack }: PairingPageProps) {
       const trimmed = str.trim();
       if (!trimmed || trimmed === "[object Object]") return null;
 
+      const directAccept = acceptIfLooksLikeToken(trimmed);
+      if (directAccept) return directAccept;
+
       // Query-like token? (token=..., start_param=..., or URL with them)
       const fromQuery = extractFromQueryLike(trimmed);
       if (fromQuery) return parseString(fromQuery);
 
       try {
         const parsed = JSON.parse(trimmed);
-        if (typeof parsed === "string") return parsed;
-        if (parsed && typeof parsed.token === "string") return parsed.token;
+        if (typeof parsed === "string") return parseString(parsed);
+        if (parsed && typeof parsed.token === "string") return parseString(parsed.token);
       } catch {
         // not JSON, keep going
       }
@@ -64,9 +76,9 @@ function PairingPage({ onBack }: PairingPageProps) {
       try {
         const decoded = atob(trimmed);
         const decodedParsed = JSON.parse(decoded);
-        if (typeof decodedParsed === "string") return decodedParsed;
+        if (typeof decodedParsed === "string") return parseString(decodedParsed);
         if (decodedParsed && typeof decodedParsed.token === "string") {
-          return decodedParsed.token;
+          return parseString(decodedParsed.token);
         }
 
         // Maybe base64 of querystring
