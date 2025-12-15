@@ -22,11 +22,39 @@ function PairingPage({ onBack }: PairingPageProps) {
   const normalizePairingToken = (raw: unknown): string | null => {
     if (raw == null) return null;
 
-    const parseString = (str: string): string | null => {
-      if (!str || str === "[object Object]") return null;
+    const extractFromQueryLike = (value: string): string | null => {
+      if (!value.includes("token") && !value.includes("start_param")) return null;
 
       try {
-        const parsed = JSON.parse(str);
+        const url = new URL(value);
+        const direct = url.searchParams.get("token") || url.searchParams.get("start_param");
+        if (direct) return direct;
+      } catch {
+        // not a full URL, fall through to search params
+      }
+
+      try {
+        const params = new URLSearchParams(value);
+        const direct = params.get("token") || params.get("start_param");
+        if (direct) return direct;
+      } catch {
+        // ignore
+      }
+
+      return null;
+    };
+
+    const parseString = (str: string): string | null => {
+      if (!str) return null;
+      const trimmed = str.trim();
+      if (!trimmed || trimmed === "[object Object]") return null;
+
+      // Query-like token? (token=..., start_param=..., or URL with them)
+      const fromQuery = extractFromQueryLike(trimmed);
+      if (fromQuery) return parseString(fromQuery);
+
+      try {
+        const parsed = JSON.parse(trimmed);
         if (typeof parsed === "string") return parsed;
         if (parsed && typeof parsed.token === "string") return parsed.token;
       } catch {
@@ -34,17 +62,21 @@ function PairingPage({ onBack }: PairingPageProps) {
       }
 
       try {
-        const decoded = atob(str);
+        const decoded = atob(trimmed);
         const decodedParsed = JSON.parse(decoded);
         if (typeof decodedParsed === "string") return decodedParsed;
         if (decodedParsed && typeof decodedParsed.token === "string") {
           return decodedParsed.token;
         }
+
+        // Maybe base64 of querystring
+        const decodedQuery = extractFromQueryLike(decoded);
+        if (decodedQuery) return parseString(decodedQuery);
       } catch {
         // not base64 JSON, fall through
       }
 
-      return str;
+      return trimmed;
     };
 
     if (typeof raw === "string") return parseString(raw);
@@ -67,6 +99,8 @@ function PairingPage({ onBack }: PairingPageProps) {
       window.Telegram?.WebApp?.initDataUnsafe?.start_param,
       (window.Telegram?.WebApp?.initDataUnsafe as any)?.startParam,
       (window.Telegram?.WebApp?.initDataUnsafe as any)?.startapp,
+      (window.Telegram?.WebApp as any)?.initData,
+      urlParams.toString(), // entire query string
     ];
 
     for (const candidate of candidates) {
