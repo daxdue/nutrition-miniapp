@@ -70,10 +70,16 @@ function PairingPage({ onBack }: PairingPageProps) {
         tg.showScanQrPopup(
           { text: "Scan the QR code from your Garmin watch" },
           (data) => {
+            tg.closeScanQrPopup?.(); // ensure popup closes even if state is stale
+
             if (!data) {
-              stopScanning();
+              setScanning(false);
+              setScanMethod(null);
               return;
             }
+
+            setScanning(false);
+            setScanMethod(null);
             handleScannedCode(data);
           }
         );
@@ -131,6 +137,9 @@ function PairingPage({ onBack }: PairingPageProps) {
           setScanning(false);
           setScanMethod(null);
         });
+    } else {
+      setScanning(false);
+      setScanMethod(null);
     }
   };
 
