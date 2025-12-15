@@ -11,6 +11,7 @@ interface PairingPageProps {
 
 function PairingPage({ onBack }: PairingPageProps) {
   const [scanning, setScanning] = useState(false);
+  const [scanMethod, setScanMethod] = useState<"telegram" | "html5" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [pairingToken, setPairingToken] = useState<string | null>(null);
@@ -60,7 +61,27 @@ function PairingPage({ onBack }: PairingPageProps) {
 
     try {
       setError(null);
+      const tg = window.Telegram?.WebApp;
+
+      if (tg?.showScanQrPopup) {
+        setScanning(true);
+        setScanMethod("telegram");
+
+        tg.showScanQrPopup(
+          { text: "Scan the QR code from your Garmin watch" },
+          (data) => {
+            if (!data) {
+              stopScanning();
+              return;
+            }
+            handleScannedCode(data);
+          }
+        );
+        return;
+      }
+
       setScanning(true);
+      setScanMethod("html5");
 
       const html5QrCode = new Html5Qrcode(qrCodeRegionId);
       scannerRef.current = html5QrCode;
@@ -84,21 +105,31 @@ function PairingPage({ onBack }: PairingPageProps) {
       console.error("Failed to start camera:", err);
       setError("Failed to access camera. Please grant camera permissions.");
       setScanning(false);
+      setScanMethod(null);
     }
   };
 
   const stopScanning = () => {
+    if (scanMethod === "telegram") {
+      window.Telegram?.WebApp?.closeScanQrPopup?.();
+      setScanning(false);
+      setScanMethod(null);
+      return;
+    }
+
     if (scannerRef.current) {
       scannerRef.current
         .stop()
         .then(() => {
           scannerRef.current = null;
           setScanning(false);
+          setScanMethod(null);
         })
         .catch((err) => {
           console.error("Failed to stop scanner:", err);
           scannerRef.current = null;
           setScanning(false);
+          setScanMethod(null);
         });
     }
   };
@@ -188,6 +219,7 @@ function PairingPage({ onBack }: PairingPageProps) {
       if (scannerRef.current) {
         scannerRef.current.stop().catch(() => {});
       }
+      window.Telegram?.WebApp?.closeScanQrPopup?.();
     };
   }, []);
 
@@ -261,6 +293,20 @@ function PairingPage({ onBack }: PairingPageProps) {
                   No pairing token found. Please use the /pair command in the bot to get a pairing link.
                 </p>
               )}
+            </div>
+          ) : scanMethod === "telegram" ? (
+            <div className="card">
+              <h3>Scanning in Telegram...</h3>
+              <p>
+                The Telegram scanner popup is active. Point your camera at the QR code from your Garmin watch or close the popup to cancel.
+              </p>
+              <button
+                onClick={stopScanning}
+                className="secondary-button"
+                style={{ marginTop: 16 }}
+              >
+                Cancel
+              </button>
             </div>
           ) : (
             <div className="card">

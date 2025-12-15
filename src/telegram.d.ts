@@ -16,6 +16,11 @@ declare global {
     expand: () => void;
     ready: () => void;
     themeParams?: Record<string, any>;
+    showScanQrPopup?: (
+      params: { text?: string },
+      callback: (data: string | null) => void
+    ) => void;
+    closeScanQrPopup?: () => void;
   }
 
   interface TelegramWebAppRoot {
