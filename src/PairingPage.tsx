@@ -21,8 +21,22 @@ function PairingPage({ onBack }: PairingPageProps) {
 
   // Get pairing token from URL or generate one
   useEffect(() => {
+    const normalizePairingToken = (raw: string | null) => {
+      if (!raw) return null;
+
+      try {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed === "string") return parsed;
+        if (parsed && typeof parsed.token === "string") return parsed.token;
+      } catch {
+        // not JSON, use raw
+      }
+
+      return raw;
+    };
+
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get("token");
+    const token = normalizePairingToken(urlParams.get("token"));
     
     if (token) {
       setPairingToken(token);
@@ -175,13 +189,16 @@ function PairingPage({ onBack }: PairingPageProps) {
       return;
     }
 
+    const normalizedToken = pairingToken.toString();
+    const tokenForUrl = encodeURIComponent(normalizedToken);
+
     try {
       setLoading(true);
       setError(null);
 
       // Check if pairing token is valid
       const pairingTokenResponse = await axios.get(
-        `${API_BASE}/api/pairing/token/${pairingToken}`
+        `${API_BASE}/api/pairing/token/${tokenForUrl}`
       );
       
       if (!pairingTokenResponse.data.ok) {
@@ -192,7 +209,7 @@ function PairingPage({ onBack }: PairingPageProps) {
       const response = await axios.post(
         `${API_BASE}/api/pairing/pair`,
         {
-          token: pairingToken,
+          token: normalizedToken,
           deviceId: deviceId,
         }
       );
