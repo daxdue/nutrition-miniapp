@@ -19,36 +19,67 @@ function PairingPage({ onBack }: PairingPageProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const qrCodeRegionId = "qr-reader";
 
-  // Get pairing token from URL or generate one
-  useEffect(() => {
-    const normalizePairingToken = (raw: unknown): string | null => {
-      if (raw == null) return null;
+  const normalizePairingToken = (raw: unknown): string | null => {
+    if (raw == null) return null;
 
-      if (typeof raw === "string") {
-        try {
-          const parsed = JSON.parse(raw);
-          if (typeof parsed === "string") return parsed;
-          if (parsed && typeof parsed.token === "string") return parsed.token;
-        } catch {
-          // not JSON, use raw string
+    const parseString = (str: string): string | null => {
+      if (!str || str === "[object Object]") return null;
+
+      try {
+        const parsed = JSON.parse(str);
+        if (typeof parsed === "string") return parsed;
+        if (parsed && typeof parsed.token === "string") return parsed.token;
+      } catch {
+        // not JSON, keep going
+      }
+
+      try {
+        const decoded = atob(str);
+        const decodedParsed = JSON.parse(decoded);
+        if (typeof decodedParsed === "string") return decodedParsed;
+        if (decodedParsed && typeof decodedParsed.token === "string") {
+          return decodedParsed.token;
         }
-        return raw;
+      } catch {
+        // not base64 JSON, fall through
       }
 
-      if (typeof raw === "object") {
-        const maybeToken = (raw as Record<string, unknown>).token;
-        if (typeof maybeToken === "string") return maybeToken;
-        return null;
-      }
-
-      return null;
+      return str;
     };
 
+    if (typeof raw === "string") return parseString(raw);
+
+    if (typeof raw === "object") {
+      const maybeToken = (raw as Record<string, unknown>).token;
+      if (typeof maybeToken === "string") return parseString(maybeToken);
+      return null;
+    }
+
+    return null;
+  };
+
+  const resolvePairingToken = (): string | null => {
     const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = normalizePairingToken(urlParams.get("token"));
-    const startParamFromUrl = normalizePairingToken(urlParams.get("start_param"));
-    const tgStartParam = normalizePairingToken(window.Telegram?.WebApp?.initDataUnsafe?.start_param);
-    const token = tokenFromUrl || startParamFromUrl || tgStartParam;
+
+    const candidates = [
+      urlParams.get("token"),
+      urlParams.get("start_param"),
+      window.Telegram?.WebApp?.initDataUnsafe?.start_param,
+      (window.Telegram?.WebApp?.initDataUnsafe as any)?.startParam,
+      (window.Telegram?.WebApp?.initDataUnsafe as any)?.startapp,
+    ];
+
+    for (const candidate of candidates) {
+      const token = normalizePairingToken(candidate);
+      if (token) return token;
+    }
+
+    return null;
+  };
+
+  // Get pairing token from URL or generate one
+  useEffect(() => {
+    const token = resolvePairingToken();
     
     if (token) {
       setPairingToken(token);
@@ -196,12 +227,20 @@ function PairingPage({ onBack }: PairingPageProps) {
   };
 
   const pairDevice = async (deviceId: string) => {
-    if (!pairingToken || typeof pairingToken !== "string") {
+    let normalizedToken = pairingToken;
+
+    if (!normalizedToken || normalizedToken === "[object Object]") {
+      normalizedToken = resolvePairingToken();
+      if (normalizedToken) {
+        setPairingToken(normalizedToken);
+      }
+    }
+
+    if (!normalizedToken || normalizedToken === "[object Object]") {
       setError("No pairing token available.");
       return;
     }
 
-    const normalizedToken = pairingToken;
     const tokenForUrl = encodeURIComponent(normalizedToken);
 
     try {
