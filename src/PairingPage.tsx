@@ -21,22 +21,34 @@ function PairingPage({ onBack }: PairingPageProps) {
 
   // Get pairing token from URL or generate one
   useEffect(() => {
-    const normalizePairingToken = (raw: string | null) => {
-      if (!raw) return null;
+    const normalizePairingToken = (raw: unknown): string | null => {
+      if (raw == null) return null;
 
-      try {
-        const parsed = JSON.parse(raw);
-        if (typeof parsed === "string") return parsed;
-        if (parsed && typeof parsed.token === "string") return parsed.token;
-      } catch {
-        // not JSON, use raw
+      if (typeof raw === "string") {
+        try {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed === "string") return parsed;
+          if (parsed && typeof parsed.token === "string") return parsed.token;
+        } catch {
+          // not JSON, use raw string
+        }
+        return raw;
       }
 
-      return raw;
+      if (typeof raw === "object") {
+        const maybeToken = (raw as Record<string, unknown>).token;
+        if (typeof maybeToken === "string") return maybeToken;
+        return null;
+      }
+
+      return null;
     };
 
     const urlParams = new URLSearchParams(window.location.search);
-    const token = normalizePairingToken(urlParams.get("token"));
+    const tokenFromUrl = normalizePairingToken(urlParams.get("token"));
+    const startParamFromUrl = normalizePairingToken(urlParams.get("start_param"));
+    const tgStartParam = normalizePairingToken(window.Telegram?.WebApp?.initDataUnsafe?.start_param);
+    const token = tokenFromUrl || startParamFromUrl || tgStartParam;
     
     if (token) {
       setPairingToken(token);
@@ -184,12 +196,12 @@ function PairingPage({ onBack }: PairingPageProps) {
   };
 
   const pairDevice = async (deviceId: string) => {
-    if (!pairingToken) {
+    if (!pairingToken || typeof pairingToken !== "string") {
       setError("No pairing token available.");
       return;
     }
 
-    const normalizedToken = pairingToken.toString();
+    const normalizedToken = pairingToken;
     const tokenForUrl = encodeURIComponent(normalizedToken);
 
     try {
