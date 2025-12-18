@@ -116,8 +116,8 @@ function PairingPage({ onBack }: PairingPageProps) {
     ];
 
     for (const candidate of candidates) {
-      console.log("Candidate: ", candidate);
       const token = normalizePairingToken(candidate);
+      console.log("Token: ", token);
       if (token) return token;
     }
 
