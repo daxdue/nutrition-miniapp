@@ -248,6 +248,7 @@ function PairingPage({ onBack }: PairingPageProps) {
 
   const handleScannedCode = async (scannedData: string) => {
     // Stop scanning once we get a result
+    console.log("Scanned QR data: ", scannedData);
     stopScanning();
 
     // The QR code should contain the deviceId from the Garmin watch
