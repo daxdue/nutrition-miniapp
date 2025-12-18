@@ -297,10 +297,14 @@ function PairingPage({ onBack }: PairingPageProps) {
 
       // Check if pairing token is valid
       const pairingTokenResponse = await axios.get(
-        `${API_BASE}/api/pairing/token/${tokenForUrl}`
+        `${API_BASE}/api/pairing/token/${tokenForUrl}`,
+        { validateStatus: (status) => status < 500 } // allow 4xx so we can show friendly message
       );
-      
-      if (!pairingTokenResponse.data.ok) {
+
+      if (
+        pairingTokenResponse.status >= 400 ||
+        !pairingTokenResponse.data?.token
+      ) {
         setError("Pairing token is invalid or expired. Please use the /pair command in the bot to get a new pairing link.");
         return;
       }
